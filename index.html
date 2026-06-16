@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jeu Vocabulaire CE1 - Synonymes et Contraires</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e0f2fe; /* Light blue background */
+            background-image: radial-gradient(#bae6fd 20%, transparent 20%),
+                              radial-gradient(#bae6fd 20%, transparent 20%);
+            background-color: #e0f2fe;
+            background-position: 0 0, 25px 25px;
+            background-size: 50px 50px;
+            touch-action: none; /* Prevent scroll while dragging on mobile */
+            overflow: hidden;
+        }
+
+        h1, h2, .font-title {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Buttons styles */
+        .btn-game {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 0 rgba(0,0,0,0.2);
+        }
+        .btn-game:active {
+            transform: translateY(8px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.2);
+        }
+
+        /* Connecting dots */
+        .dot {
+            width: 24px;
+            height: 24px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+            border: 4px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            cursor: pointer;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 20;
+            transition: transform 0.1s;
+        }
+        .dot:hover {
+            transform: translateY(-50%) scale(1.2);
+            background-color: #2563eb;
+        }
+
+        .word-card {
+            position: relative;
+            background: white;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e3a8a;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            border: 2px solid #bfdbfe;
+            user-select: none;
+            z-index: 10;
+        }
+
+        /* Positioning dots relative to words */
+        .word-left .dot { right: -12px; }
+        .word-right .dot { left: -12px; }
+
+        /* Canvas for lines */
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none; /* Let clicks pass through to dots */
+        }
+
+        /* Modal animations */
+        .modal-enter { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center relative">
+
+    <div id="menu-view" class="w-full max-w-2xl px-4 flex flex-col items-center justify-center">
+        <div class="bg-white p-8 rounded-3xl shadow-xl border-4 border-white text-center w-full">
+            <div class="mb-6 flex justify-center space-x-4 text-5xl">
+                <i class="fa-solid fa-puzzle-piece text-blue-500"></i>
+                <i class="fa-solid fa-star text-yellow-400"></i>
+            </div>
+            <h1 class="text-4xl md:text-5xl text-blue-600 mb-8 font-title tracking-wide">
+                Les Mots Magiques
+            </h1>
+            <p class="text-xl text-gray-600 mb-8 font-semibold">Choisis ton défi :</p>
+            
+            <div class="flex flex-col space-y-6 max-w-sm mx-auto">
+                <button onclick="startGame('synonymes')" class="btn-game font-title bg-green-500 hover:bg-green-400 text-white text-2xl py-4 px-8 rounded-2xl border-2 border-green-600">
+                    <i class="fa-solid fa-equals mr-2"></i> Synonymes
+                </button>
+                <button onclick="startGame('contraires')" class="btn-game font-title bg-purple-500 hover:bg-purple-400 text-white text-2xl py-4 px-8 rounded-2xl border-2 border-purple-600">
+                    <i class="fa-solid fa-arrows-left-right mr-2"></i> Contraires
+                </button>
+                <button onclick="showLesson()" class="btn-game font-title bg-yellow-400 hover:bg-yellow-300 text-yellow-900 text-xl py-3 px-8 rounded-2xl mt-4 border-2 border-yellow-500">
+                    <i class="fa-solid fa-book-open mr-2"></i> Voir la Leçon
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-view" class="hidden w-full h-full max-w-4xl px-2 md:px-8 py-4 flex flex-col relative">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-4 z-20 bg-white/80 backdrop-blur rounded-2xl p-3 shadow-sm border border-white">
+            <button onclick="showMenu()" class="text-gray-500 hover:text-gray-800 text-lg font-bold py-2 px-4 rounded-xl bg-white shadow-sm border border-gray-200">
+                <i class="fa-solid fa-arrow-left"></i> Retour
+            </button>
+            <h2 id="game-title" class="text-2xl md:text-3xl text-blue-600 font-title text-center flex-1">
+                Relie les mots
+            </h2>
+            <button onclick="checkAnswers()" class="bg-blue-500 hover:bg-blue-400 text-white text-lg font-bold py-2 px-6 rounded-xl shadow-md border-b-4 border-blue-700 active:border-b-0 active:mt-1 transition-all">
+                Valider
+            </button>
+        </div>
+
+        <!-- Play Area (Columns + Canvas) -->
+        <div id="play-area" class="flex-1 relative flex justify-between items-stretch w-full mt-2 bg-white rounded-3xl shadow-xl border-4 border-white p-4 overflow-hidden">
+            <canvas id="game-canvas"></canvas>
+            
+            <!-- Left Column -->
+            <div id="col-left" class="w-5/12 flex flex-col justify-around z-10 relative"></div>
+            
+            <!-- Right Column -->
+            <div id="col-right" class="w-5/12 flex flex-col justify-around z-10 relative"></div>
+        </div>
+    </div>
+
+    <div id="lesson-view" class="hidden w-full h-full p-4 flex flex-col items-center justify-center relative bg-white">
+        <button onclick="showMenu()" class="absolute top-4 left-4 z-50 text-gray-600 bg-gray-100 hover:bg-gray-200 text-lg font-bold py-2 px-4 rounded-xl shadow-sm border border-gray-300">
+            <i class="fa-solid fa-arrow-left"></i> Retour
+        </button>
+        <h2 class="text-3xl text-blue-600 font-title mb-4 z-10">Leçon : Synonymes et Contraires</h2>
+        <div class="max-w-4xl w-full h-[70vh] bg-gray-50 rounded-2xl border-4 border-dashed border-gray-300 flex items-center justify-center overflow-auto shadow-inner">
+            <!-- 
+                Using lecon.png as requested. 
+                Added onerror fallback in case the user hasn't created the image yet.
+            -->
+            <img src="lecon.png" 
+                 onerror="this.onerror=null; this.src='https://placehold.co/800x600/FFFBEB/b45309?font=montserrat&text=Fichier+lecon.png+introuvable.%5CnCréez+une+image+nommée+lecon.png%5Cnpour+afficher+la+leçon+ici.';" 
+                 alt="Leçon" class="max-w-full h-auto object-contain rounded-xl">
+        </div>
+    </div>
+
+    <div id="custom-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center modal-enter text-center border-4 border-white">
+            <div id="modal-icon" class="text-6xl mb-4"></div>
+            <h3 id="modal-title" class="text-3xl font-title text-gray-800 mb-2"></h3>
+            <p id="modal-text" class="text-lg text-gray-600 font-medium mb-6"></p>
+            <button onclick="closeModal()" class="btn-game font-title bg-blue-500 text-white text-xl py-3 px-8 rounded-xl w-full border-b-4 border-blue-700">
+                Continuer
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Data Bank : 20 pairs for each category
+        const dataBank = {
+            synonymes: [
+                { l: "beau", r: "joli" },
+                { l: "maison", r: "demeure" },
+                { l: "heureux", r: "content" },
+                { l: "ami", r: "copain" },
+                { l: "triste", r: "chagriné" },
+                { l: "regarder", r: "observer" },
+                { l: "bateau", r: "navire" },
+                { l: "docteur", r: "médecin" },
+                { l: "drôle", r: "amusant" },
+                { l: "crier", r: "hurler" },
+                { l: "finir", r: "terminer" },
+                { l: "grand", r: "vaste" },
+                { l: "petit", r: "minuscule" },
+                { l: "peur", r: "crainte" },
+                { l: "erreur", r: "faute" },
+                { l: "calme", r: "tranquille" },
+                { l: "méchant", r: "féroce" },
+                { l: "casser", r: "briser" },
+                { l: "laid", r: "moche" },
+                { l: "fatigué", r: "épuisé" }
+            ],
+            contraires: [
+                { l: "chaud", r: "froid" },
+                { l: "grand", r: "petit" },
+                { l: "gentil", r: "méchant" },
+                { l: "jour", r: "nuit" },
+                { l: "pleurer", r: "rire" },
+                { l: "ouvert", r: "fermé" },
+                { l: "riche", r: "pauvre" },
+                { l: "propre", r: "sale" },
+                { l: "allumer", r: "éteindre" },
+                { l: "monter", r: "descendre" },
+                { l: "rapide", r: "lent" },
+                { l: "lourd", r: "léger" },
+                { l: "plein", r: "vide" },
+                { l: "jeune", r: "vieux" },
+                { l: "premier", r: "dernier" },
+                { l: "bruit", r: "silence" },
+                { l: "facile", r: "difficile" },
+                { l: "vrai", r: "faux" },
+                { l: "haut", r: "bas" },
+                { l: "fort", r: "faible" }
+            ]
+        };
+
+        let currentMode = '';
+        let pairsInPlay = [];
+        let connections = []; // Array of objects {left: 'wordL', right: 'wordR', color: 'hex', correct: null/boolean}
+        let lineColors = ['#ef4444', '#f97316', '#8b5cf6', '#06b6d4', '#ec4899'];
+        
+        // Drawing state
+        let isDrawing = false;
+        let startDot = null;
+        let currentMousePos = { x: 0, y: 0 };
+        
+        // Canvas setup
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const playArea = document.getElementById('play-area');
+
+        // Utility to shuffle an array
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        // View management
+        function hideAll() {
+            document.getElementById('menu-view').classList.add('hidden');
+            document.getElementById('game-view').classList.add('hidden');
+            document.getElementById('lesson-view').classList.add('hidden');
+        }
+
+        function showMenu() {
+            hideAll();
+            document.getElementById('menu-view').classList.remove('hidden');
+        }
+
+        function showLesson() {
+            hideAll();
+            document.getElementById('lesson-view').classList.remove('hidden');
+        }
+
+        function showModal(title, text, iconHtml, isWin = false) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-title').className = `text-3xl font-title mb-2 ${isWin ? 'text-green-600' : 'text-blue-600'}`;
+            document.getElementById('modal-text').textContent = text;
+            document.getElementById('modal-icon').innerHTML = iconHtml;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        function startGame(mode) {
+            currentMode = mode;
+            hideAll();
+            document.getElementById('game-view').classList.remove('hidden');
+            
+            // Set Title
+            const titleEl = document.getElementById('game-title');
+            if(mode === 'synonymes') {
+                titleEl.innerHTML = '<i class="fa-solid fa-equals mr-2"></i> Les Synonymes';
+                titleEl.className = 'text-2xl md:text-3xl font-title text-center flex-1 text-green-600';
+            } else {
+                titleEl.innerHTML = '<i class="fa-solid fa-arrows-left-right mr-2"></i> Les Contraires';
+                titleEl.className = 'text-2xl md:text-3xl font-title text-center flex-1 text-purple-600';
+            }
+
+            // Pick 5 random pairs
+            let allPairs = [...dataBank[mode]];
+            shuffle(allPairs);
+            pairsInPlay = allPairs.slice(0, 5);
+
+            // Separate left and right words and shuffle them independently
+            let leftWords = pairsInPlay.map(p => p.l);
+            let rightWords = pairsInPlay.map(p => p.r);
+            
+            shuffle(leftWords);
+            shuffle(rightWords);
+
+            // Render DOM
+            const colLeft = document.getElementById('col-left');
+            const colRight = document.getElementById('col-right');
+            colLeft.innerHTML = '';
+            colRight.innerHTML = '';
+
+            leftWords.forEach((word, index) => {
+                const card = document.createElement('div');
+                card.className = 'word-card word-left';
+                card.innerHTML = `<span>${word}</span><div class="dot" data-word="${word}" data-side="left" id="dot-l-${index}"></div>`;
+                colLeft.appendChild(card);
+            });
+
+            rightWords.forEach((word, index) => {
+                const card = document.createElement('div');
+                card.className = 'word-card word-right';
+                card.innerHTML = `<div class="dot" data-word="${word}" data-side="right" id="dot-r-${index}"></div><span>${word}</span>`;
+                colRight.appendChild(card);
+            });
+
+            connections = [];
+            resizeCanvas();
+            bindDotEvents();
+        }
+
+        function resizeCanvas() {
+            if(document.getElementById('game-view').classList.contains('hidden')) return;
+            const rect = playArea.getBoundingClientRect();
+            // Important: Handle high DPI screens for sharp canvas lines
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            // CSS size
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function bindDotEvents() {
+            const dots = document.querySelectorAll('.dot');
+            dots.forEach(dot => {
+                dot.addEventListener('mousedown', onPointerDown);
+                dot.addEventListener('touchstart', onPointerDown, {passive: false});
+            });
+        }
+
+        function getPointerPos(e) {
+            const rect = playArea.getBoundingClientRect();
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function getDotCenter(dot) {
+            const dotRect = dot.getBoundingClientRect();
+            const playRect = playArea.getBoundingClientRect();
+            return {
+                x: (dotRect.left - playRect.left) + dotRect.width / 2,
+                y: (dotRect.top - playRect.top) + dotRect.height / 2
+            };
+        }
+
+        function onPointerDown(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            
+            const dot = e.target;
+            const word = dot.dataset.word;
+            const side = dot.dataset.side;
+
+            // If dot already connected, remove its connection to redraw
+            connections = connections.filter(c => c.left !== word && c.right !== word);
+            
+            isDrawing = true;
+            startDot = dot;
+            currentMousePos = getPointerPos(e);
+            
+            draw();
+        }
+
+        function onPointerMove(e) {
+            if (!isDrawing) return;
+            if (e.type === 'touchmove') e.preventDefault(); // Prevent scrolling
+            
+            currentMousePos = getPointerPos(e);
+            draw();
+        }
+
+        function onPointerUp(e) {
+            if (!isDrawing) return;
+            isDrawing = false;
+            
+            let clientX, clientY;
+            if (e.type === 'touchend') {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            // Find if released over an opposite dot
+            const dropPoint = {x: clientX, y: clientY};
+            const allDots = document.querySelectorAll('.dot');
+            let matchedDot = null;
+            const SNAP_RADIUS = 30; // Radius to snap to a dot
+
+            allDots.forEach(dot => {
+                if (dot === startDot || dot.dataset.side === startDot.dataset.side) return;
+                
+                const dotRect = dot.getBoundingClientRect();
+                const dotCenterX = dotRect.left + dotRect.width / 2;
+                const dotCenterY = dotRect.top + dotRect.height / 2;
+                
+                const dist = Math.hypot(dotCenterX - dropPoint.x, dotCenterY - dropPoint.y);
+                if (dist < SNAP_RADIUS) {
+                    matchedDot = dot;
+                }
+            });
+
+            if (matchedDot) {
+                // Determine left and right words
+                const word1 = startDot.dataset.word;
+                const word2 = matchedDot.dataset.word;
+                const leftWord = startDot.dataset.side === 'left' ? word1 : word2;
+                const rightWord = startDot.dataset.side === 'right' ? word1 : word2;
+                
+                // Remove existing connections for these target words just in case
+                connections = connections.filter(c => c.left !== leftWord && c.right !== rightWord);
+
+                // Add new connection
+                connections.push({
+                    left: leftWord,
+                    right: rightWord,
+                    color: lineColors[connections.length % lineColors.length],
+                    correct: null // Not checked yet
+                });
+            }
+
+            startDot = null;
+            draw();
+        }
+
+        // Attach move/up listeners to window to track dragging everywhere
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchmove', onPointerMove, {passive: false});
+        window.addEventListener('touchend', onPointerUp);
+
+        function draw() {
+            // Clear canvas
+            const rect = playArea.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            
+            // Draw established connections
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            
+            connections.forEach(conn => {
+                const dotLeft = document.querySelector(`.dot[data-word="${conn.left}"]`);
+                const dotRight = document.querySelector(`.dot[data-word="${conn.right}"]`);
+                
+                if (dotLeft && dotRight) {
+                    const posL = getDotCenter(dotLeft);
+                    const posR = getDotCenter(dotRight);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(posL.x, posL.y);
+                    // Use a slightly curved path for fun aesthetics
+                    const cpX = (posL.x + posR.x) / 2;
+                    ctx.quadraticCurveTo(cpX, posL.y, posR.x, posR.y);
+                    
+                    // Color logic based on validation
+                    if (conn.correct === true) {
+                        ctx.strokeStyle = '#22c55e'; // Green
+                    } else if (conn.correct === false) {
+                        ctx.strokeStyle = '#ef4444'; // Red
+                    } else {
+                        ctx.strokeStyle = conn.color;
+                    }
+                    
+                    ctx.stroke();
+                }
+            });
+
+            // Draw current dragged line
+            if (isDrawing && startDot) {
+                const posS = getDotCenter(startDot);
+                ctx.beginPath();
+                ctx.moveTo(posS.x, posS.y);
+                ctx.lineTo(currentMousePos.x, currentMousePos.y);
+                ctx.strokeStyle = '#94a3b8'; // Neutral gray while dragging
+                ctx.lineWidth = 4;
+                ctx.setLineDash([10, 10]); // Dashed line while drawing
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset
+            }
+        }
+
+        function checkAnswers() {
+            if(connections.length === 0) {
+                showModal("Oups !", "Tu dois relier au moins un mot avant de valider.", '<i class="fa-solid fa-hand-pointer text-yellow-400"></i>');
+                return;
+            }
+
+            let score = 0;
+            
+            connections.forEach(conn => {
+                // Find matching pair in pairsInPlay
+                const isMatch = pairsInPlay.some(p => p.l === conn.left && p.r === conn.right);
+                if (isMatch) {
+                    conn.correct = true;
+                    score++;
+                } else {
+                    conn.correct = false;
+                }
+            });
+
+            draw(); // Redraw lines with green/red colors
+
+            setTimeout(() => {
+                if (score === 5) {
+                    showModal("Bravo !", "Tu as tout juste ! Tu es un champion des mots.", '<i class="fa-solid fa-trophy text-yellow-400"></i>', true);
+                } else {
+                    showModal("Presque !", `Tu as trouvé ${score} paire(s) sur 5. Corrige tes erreurs !`, '<i class="fa-solid fa-face-smile text-blue-400"></i>');
+                }
+                
+                // Keep correct ones, drop incorrect ones
+                connections = connections.filter(c => c.correct);
+                draw();
+                
+                // If perfect, re-shuffle after a delay or just wait for them to click "Retour"
+                if (score === 5) {
+                    setTimeout(() => {
+                        startGame(currentMode); // restart
+                        closeModal();
+                    }, 3000);
+                }
+            }, 500);
+        }
+    </script>
+</body>
+</html>
