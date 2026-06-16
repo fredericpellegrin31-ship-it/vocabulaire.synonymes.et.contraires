@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Jeu Vocabulaire CE1 - Synonymes et Contraires</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     
@@ -538,6 +539,13 @@
 
             setTimeout(() => {
                 if (score === 5) {
+                    confetti({
+                        particleCount: 150,
+                        spread: 80,
+                        origin: { y: 0.6 },
+                        zIndex: 1000,
+                        colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7']
+                    });
                     showModal("Bravo !", "Tu as tout juste ! Tu es un champion des mots.", '<i class="fa-solid fa-trophy text-yellow-400"></i>', true);
                 } else {
                     showModal("Presque !", `Tu as trouvé ${score} paire(s) sur 5. Corrige tes erreurs !`, '<i class="fa-solid fa-face-smile text-blue-400"></i>');
